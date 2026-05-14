@@ -1,0 +1,11 @@
+@import "tailwindcss";
+@plugin "daisyui";
+
+.dutyTitle {
+  font-family: "Science Gothic", sans-serif;
+}
+
+.titles,
+.DisplayTitles {
+  font-family: "Roboto Mono", monospace;
+}
