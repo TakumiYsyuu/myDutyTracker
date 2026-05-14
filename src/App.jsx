@@ -4,8 +4,11 @@ import { useState, useEffect } from "react";
 function App() {
   const [isOpen, setOpen] = useState(false);
   const [duties, setDuties] = useState([]);
+  const [editingIndex, setEditingIndex] = useState(null);
+  const [expandedIndex, setExpandedIndex] = useState(null);
+  const [deleteConfirm, setDeleteConfirm] = useState(null);
 
-  const [form, setForm] = useState({
+  const emptyForm = {
     dutyIn: "",
     dutyOut: "",
     overtime: "",
@@ -13,111 +16,136 @@ function App() {
     dayRate: "",
     otRate: "",
     payType: "hourly",
-  });
+  };
+
+  const [form, setForm] = useState(emptyForm);
 
   useEffect(() => {
     const saved = localStorage.getItem("duties");
-    if (saved) {
-      setDuties(JSON.parse(saved));
-    }
+    if (saved) setDuties(JSON.parse(saved));
   }, []);
 
-  const handleChange = (e) => {
+  const handleChange = (e) =>
     setForm({ ...form, [e.target.name]: e.target.value });
-  };
 
   const calculateHours = (dutyIn, dutyOut) => {
     if (!dutyIn || !dutyOut) return 0;
-    const start = new Date(dutyIn);
-    const end = new Date(dutyOut);
-    const diff = end - start;
+    const diff = new Date(dutyOut) - new Date(dutyIn);
     const hours = diff / (1000 * 60 * 60);
     return hours > 0 ? hours : 0;
   };
 
-  const saveDuty = () => {
-    const hoursWorked = calculateHours(form.dutyIn, form.dutyOut);
-    const overtimeHours = Number(form.overtime) || 0;
-    const otRate = Number(form.otRate) || 0;
+  const computeEntry = (f) => {
+    const hoursWorked = calculateHours(f.dutyIn, f.dutyOut);
+    const overtimeHours = Number(f.overtime) || 0;
+    const otRate = Number(f.otRate) || 0;
     const otEarnings = overtimeHours * otRate;
     const regularHours = Math.max(hoursWorked - overtimeHours, 0);
 
     let baseEarnings = 0;
-    if (form.payType === "hourly") {
-      baseEarnings = regularHours * (Number(form.hourlyRate) || 0);
-    } else if (form.payType === "daily") {
-      baseEarnings = Number(form.dayRate) || 0;
-    } else if (form.payType === "fixed") {
-      baseEarnings = Number(form.dayRate || form.hourlyRate) || 0;
-    }
+    if (f.payType === "hourly")
+      baseEarnings = regularHours * (Number(f.hourlyRate) || 0);
+    else if (f.payType === "daily") baseEarnings = Number(f.dayRate) || 0;
+    else if (f.payType === "fixed")
+      baseEarnings = Number(f.dayRate || f.hourlyRate) || 0;
 
-    const totalEarnings = baseEarnings + otEarnings;
-
-    const newEntry = {
-      dutyIn: form.dutyIn,
-      dutyOut: form.dutyOut,
+    return {
+      dutyIn: f.dutyIn,
+      dutyOut: f.dutyOut,
       overtime: overtimeHours,
-      hourlyRate: Number(form.hourlyRate) || 0,
-      dayRate: Number(form.dayRate) || 0,
+      hourlyRate: Number(f.hourlyRate) || 0,
+      dayRate: Number(f.dayRate) || 0,
       otRate,
-      payType: form.payType,
+      payType: f.payType,
       hoursWorked: Number((hoursWorked + overtimeHours).toFixed(2)),
+      regularHours: Number(regularHours.toFixed(2)),
       baseEarnings: Number(baseEarnings.toFixed(2)),
       otEarnings: Number(otEarnings.toFixed(2)),
-      earnings: Number(totalEarnings.toFixed(2)),
+      earnings: Number((baseEarnings + otEarnings).toFixed(2)),
     };
+  };
 
-    const updated = [...duties, newEntry];
+  const saveDuty = () => {
+    const entry = computeEntry(form);
+    let updated;
+    if (editingIndex !== null) {
+      updated = duties.map((d, i) => (i === editingIndex ? entry : d));
+      setEditingIndex(null);
+    } else {
+      updated = [...duties, entry];
+    }
     setDuties(updated);
     localStorage.setItem("duties", JSON.stringify(updated));
     setOpen(false);
+    setForm(emptyForm);
+  };
+
+  const startEdit = (i) => {
+    const d = duties[i];
     setForm({
-      dutyIn: "",
-      dutyOut: "",
-      overtime: "",
-      hourlyRate: "",
-      dayRate: "",
-      otRate: "",
-      payType: "hourly",
+      dutyIn: d.dutyIn || "",
+      dutyOut: d.dutyOut || "",
+      overtime: d.overtime?.toString() || "",
+      hourlyRate: d.hourlyRate?.toString() || "",
+      dayRate: d.dayRate?.toString() || "",
+      otRate: d.otRate?.toString() || "",
+      payType: d.payType || "hourly",
     });
+    setEditingIndex(i);
+    setOpen(true);
+    setExpandedIndex(null);
   };
 
-  const getPreview = () => {
-    const hoursWorked = calculateHours(form.dutyIn, form.dutyOut);
-    const overtimeHours = Number(form.overtime) || 0;
-    const otRate = Number(form.otRate) || 0;
-    const otEarnings = overtimeHours * otRate;
-    const regularHours = Math.max(hoursWorked - overtimeHours, 0);
-
-    let baseEarnings = 0;
-    if (form.payType === "hourly") {
-      baseEarnings = regularHours * (Number(form.hourlyRate) || 0);
-    } else if (form.payType === "daily") {
-      baseEarnings = Number(form.dayRate) || 0;
-    } else if (form.payType === "fixed") {
-      baseEarnings = Number(form.dayRate || form.hourlyRate) || 0;
-    }
-
-    return {
-      hoursWorked: hoursWorked.toFixed(2),
-      regularHours: regularHours.toFixed(2),
-      baseEarnings: baseEarnings.toFixed(2),
-      otEarnings: otEarnings.toFixed(2),
-      total: (baseEarnings + otEarnings).toFixed(2),
-    };
+  const deleteDuty = (i) => {
+    const updated = duties.filter((_, idx) => idx !== i);
+    setDuties(updated);
+    localStorage.setItem("duties", JSON.stringify(updated));
+    setDeleteConfirm(null);
+    if (expandedIndex === i) setExpandedIndex(null);
   };
 
-  const preview = getPreview();
+  const cancelForm = () => {
+    setOpen(false);
+    setEditingIndex(null);
+    setForm(emptyForm);
+  };
 
+  const preview = computeEntry(form);
   const totalHours = duties
-    .reduce((sum, d) => sum + Number(d.hoursWorked || 0), 0)
+    .reduce((s, d) => s + Number(d.hoursWorked || 0), 0)
     .toFixed(2);
   const totalPay = duties
-    .reduce((sum, d) => sum + Number(d.earnings || 0), 0)
+    .reduce((s, d) => s + Number(d.earnings || 0), 0)
     .toFixed(2);
   const totalOT = duties
-    .reduce((sum, d) => sum + Number(d.otEarnings || 0), 0)
+    .reduce((s, d) => s + Number(d.otEarnings || 0), 0)
     .toFixed(2);
+
+  const formatDate = (dt) => {
+    if (!dt) return "—";
+    return new Date(dt).toLocaleDateString("en-PH", {
+      weekday: "short",
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+    });
+  };
+  const formatTime = (dt) => {
+    if (!dt) return "—";
+    return new Date(dt).toLocaleTimeString("en-PH", {
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+  };
+  const formatDT = (dt) => {
+    if (!dt) return "—";
+    return new Date(dt).toLocaleString("en-PH", {
+      month: "short",
+      day: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+  };
 
   return (
     <div
@@ -127,12 +155,11 @@ function App() {
         display: "flex",
         flexDirection: "column",
         alignItems: "center",
-        padding: "32px 20px",
+        padding: "32px 20px 60px",
         fontFamily: "'DM Mono', 'Courier New', monospace",
         position: "relative",
       }}
     >
-      {/* Subtle grid background */}
       <div
         style={{
           position: "fixed",
@@ -150,11 +177,11 @@ function App() {
           position: "relative",
           zIndex: 1,
           width: "100%",
-          maxWidth: "420px",
+          maxWidth: "440px",
         }}
       >
         {/* HEADER */}
-        <div style={{ marginBottom: "32px" }}>
+        <div style={{ marginBottom: "28px" }}>
           <div
             style={{
               display: "inline-flex",
@@ -185,7 +212,6 @@ function App() {
               Duty Tracker
             </span>
           </div>
-
           <h1
             style={{
               fontSize: "26px",
@@ -217,49 +243,27 @@ function App() {
             display: "grid",
             gridTemplateColumns: "1fr 1fr",
             gap: "10px",
-            marginBottom: "12px",
+            marginBottom: "10px",
           }}
         >
-          <StatCard
-            label="LOGGED DUTY"
-            value={duties.length}
-            unit=""
-            accent="#415A77"
-          />
-          <StatCard
-            label="TOTAL HOURS"
-            value={totalHours}
-            unit="hrs"
-            accent="#415A77"
-          />
+          <StatCard label="LOGGED DUTY" value={duties.length} />
+          <StatCard label="TOTAL HOURS" value={totalHours} unit="hrs" />
         </div>
         <div
           style={{
             display: "grid",
             gridTemplateColumns: "1fr 1fr",
             gap: "10px",
-            marginBottom: "28px",
+            marginBottom: "24px",
           }}
         >
-          <StatCard
-            label="OT PAY"
-            value={`₱${totalOT}`}
-            unit=""
-            accent="#778DA9"
-            highlight
-          />
-          <StatCard
-            label="TOTAL PAY"
-            value={`₱${totalPay}`}
-            unit=""
-            accent="#778DA9"
-            highlight
-          />
+          <StatCard label="OT PAY" value={`₱${totalOT}`} highlight />
+          <StatCard label="TOTAL PAY" value={`₱${totalPay}`} highlight />
         </div>
 
         {/* ADD DUTY BUTTON */}
         <button
-          onClick={() => setOpen(!isOpen)}
+          onClick={isOpen ? cancelForm : () => setOpen(true)}
           style={{
             width: "100%",
             padding: "14px",
@@ -282,24 +286,47 @@ function App() {
           <span style={{ fontSize: "16px", fontWeight: "300" }}>
             {isOpen ? "−" : "+"}
           </span>
-          {isOpen ? "Cancel" : "Log New Duty"}
+          {isOpen ?
+            editingIndex !== null ?
+              "Cancel Edit"
+            : "Cancel"
+          : "Log New Duty"}
         </button>
 
-        {/* MODAL FORM */}
+        {/* FORM */}
         {isOpen && (
           <div
             style={{
               marginTop: "12px",
               backgroundColor: "#1B263B",
               borderRadius: "14px",
-              border: "1px solid #415A77",
+              border: `1px solid ${editingIndex !== null ? "#778DA9" : "#415A77"}`,
               padding: "24px",
               display: "flex",
               flexDirection: "column",
               gap: "16px",
             }}
           >
-            {/* PAY TYPE TOGGLE */}
+            {editingIndex !== null && (
+              <div
+                style={{
+                  backgroundColor: "#0D1B2A",
+                  borderRadius: "8px",
+                  padding: "8px 12px",
+                }}
+              >
+                <span
+                  style={{
+                    fontSize: "10px",
+                    color: "#778DA9",
+                    letterSpacing: "0.1em",
+                  }}
+                >
+                  ✏ EDITING ENTRY #{editingIndex + 1}
+                </span>
+              </div>
+            )}
+
             <div>
               <FieldLabel>Pay Type</FieldLabel>
               <div
@@ -335,7 +362,6 @@ function App() {
               </div>
             </div>
 
-            {/* DUTY IN / OUT */}
             <div
               style={{
                 display: "grid",
@@ -363,7 +389,6 @@ function App() {
               </div>
             </div>
 
-            {/* RATES */}
             <div
               style={{
                 display: "grid",
@@ -425,7 +450,6 @@ function App() {
               </div>
             </div>
 
-            {/* LIVE PREVIEW */}
             <div
               style={{
                 backgroundColor: "#0D1B2A",
@@ -441,7 +465,7 @@ function App() {
                   color: "#415A77",
                   fontWeight: "700",
                   textTransform: "uppercase",
-                  marginBottom: "10px",
+                  margin: "0 0 10px",
                 }}
               >
                 Live Preview
@@ -483,11 +507,10 @@ function App() {
                   paddingTop: "8px",
                 }}
               >
-                <PreviewRow label="TOTAL" value={`₱${preview.total}`} bold />
+                <PreviewRow label="TOTAL" value={`₱${preview.earnings}`} bold />
               </div>
             </div>
 
-            {/* SAVE BUTTON */}
             <button
               onClick={saveDuty}
               style={{
@@ -502,17 +525,16 @@ function App() {
                 letterSpacing: "0.12em",
                 cursor: "pointer",
                 textTransform: "uppercase",
-                transition: "background-color 0.15s ease",
               }}
               onMouseOver={(e) => (e.target.style.backgroundColor = "#E0E1DD")}
               onMouseOut={(e) => (e.target.style.backgroundColor = "#778DA9")}
             >
-              Save Duty
+              {editingIndex !== null ? "Update Duty" : "Save Duty"}
             </button>
           </div>
         )}
 
-        {/* DUTY LOG LIST */}
+        {/* DUTY LOG */}
         {duties.length > 0 && (
           <div style={{ marginTop: "28px" }}>
             <p
@@ -522,88 +544,377 @@ function App() {
                 color: "#415A77",
                 fontWeight: "700",
                 textTransform: "uppercase",
-                marginBottom: "12px",
+                margin: "0 0 14px",
               }}
             >
               Duty Log — {duties.length}{" "}
               {duties.length === 1 ? "entry" : "entries"}
             </p>
+
             <div
-              style={{ display: "flex", flexDirection: "column", gap: "8px" }}
+              style={{ display: "flex", flexDirection: "column", gap: "10px" }}
             >
               {duties.map((d, i) => (
-                <div
-                  key={i}
-                  style={{
-                    backgroundColor: "#1B263B",
-                    borderRadius: "10px",
-                    border: "1px solid #415A77",
-                    padding: "14px 16px",
-                    display: "flex",
-                    justifyContent: "space-between",
-                    alignItems: "center",
-                  }}
-                >
-                  <div>
-                    <p
+                <div key={i}>
+                  {deleteConfirm === i ?
+                    /* DELETE CONFIRM */
+                    <div
                       style={{
-                        fontSize: "11px",
-                        color: "#778DA9",
-                        letterSpacing: "0.05em",
-                        margin: 0,
+                        backgroundColor: "#1B263B",
+                        borderRadius: "12px",
+                        border: "1px solid #778DA9",
+                        padding: "18px 16px",
+                        display: "flex",
+                        flexDirection: "column",
+                        gap: "12px",
                       }}
                     >
-                      {d.dutyIn ?
-                        new Date(d.dutyIn).toLocaleDateString("en-PH", {
-                          month: "short",
-                          day: "numeric",
-                        })
-                      : "—"}
-                      {" · "}
-                      <span
-                        style={{
-                          textTransform: "uppercase",
-                          fontSize: "10px",
-                          color: "#415A77",
-                        }}
-                      >
-                        {d.payType}
-                      </span>
-                    </p>
-                    <p
-                      style={{
-                        fontSize: "13px",
-                        color: "#E0E1DD",
-                        fontWeight: "600",
-                        margin: "2px 0 0",
-                      }}
-                    >
-                      {d.hoursWorked} hrs
-                    </p>
-                  </div>
-                  <div style={{ textAlign: "right" }}>
-                    <p
-                      style={{
-                        fontSize: "16px",
-                        fontWeight: "700",
-                        color: "#E0E1DD",
-                        margin: 0,
-                      }}
-                    >
-                      ₱{d.earnings}
-                    </p>
-                    {d.otEarnings > 0 && (
                       <p
                         style={{
-                          fontSize: "10px",
-                          color: "#778DA9",
-                          margin: "2px 0 0",
+                          margin: 0,
+                          fontSize: "13px",
+                          color: "#E0E1DD",
+                          fontWeight: "600",
                         }}
                       >
-                        +₱{d.otEarnings} OT
+                        Delete this entry?
                       </p>
-                    )}
-                  </div>
+                      <p
+                        style={{
+                          margin: 0,
+                          fontSize: "11px",
+                          color: "#778DA9",
+                        }}
+                      >
+                        {formatDate(d.dutyIn)} · {d.hoursWorked} hrs · ₱
+                        {d.earnings}
+                      </p>
+                      <div
+                        style={{
+                          display: "grid",
+                          gridTemplateColumns: "1fr 1fr",
+                          gap: "8px",
+                        }}
+                      >
+                        <button
+                          onClick={() => setDeleteConfirm(null)}
+                          style={{
+                            padding: "10px",
+                            backgroundColor: "transparent",
+                            color: "#778DA9",
+                            border: "1px solid #415A77",
+                            borderRadius: "8px",
+                            fontSize: "11px",
+                            fontWeight: "700",
+                            letterSpacing: "0.08em",
+                            cursor: "pointer",
+                            textTransform: "uppercase",
+                          }}
+                        >
+                          Keep It
+                        </button>
+                        <button
+                          onClick={() => deleteDuty(i)}
+                          style={{
+                            padding: "10px",
+                            backgroundColor: "#415A77",
+                            color: "#E0E1DD",
+                            border: "1px solid #778DA9",
+                            borderRadius: "8px",
+                            fontSize: "11px",
+                            fontWeight: "700",
+                            letterSpacing: "0.08em",
+                            cursor: "pointer",
+                            textTransform: "uppercase",
+                          }}
+                        >
+                          Yes, Delete
+                        </button>
+                      </div>
+                    </div>
+                  : /* DUTY CARD */
+                    <div
+                      style={{
+                        backgroundColor: "#1B263B",
+                        borderRadius: "12px",
+                        border: `1px solid ${expandedIndex === i ? "#778DA9" : "#415A77"}`,
+                        overflow: "hidden",
+                      }}
+                    >
+                      {/* CARD TOP — clickable to expand */}
+                      <div
+                        onClick={() =>
+                          setExpandedIndex(expandedIndex === i ? null : i)
+                        }
+                        style={{
+                          padding: "14px 16px",
+                          cursor: "pointer",
+                          display: "flex",
+                          justifyContent: "space-between",
+                          alignItems: "flex-start",
+                        }}
+                      >
+                        <div
+                          style={{
+                            display: "flex",
+                            flexDirection: "column",
+                            gap: "5px",
+                          }}
+                        >
+                          <div
+                            style={{
+                              display: "flex",
+                              alignItems: "center",
+                              gap: "8px",
+                            }}
+                          >
+                            <span
+                              style={{
+                                fontSize: "9px",
+                                letterSpacing: "0.12em",
+                                color: "#0D1B2A",
+                                backgroundColor: "#415A77",
+                                borderRadius: "4px",
+                                padding: "2px 8px",
+                                fontWeight: "700",
+                                textTransform: "uppercase",
+                              }}
+                            >
+                              {d.payType}
+                            </span>
+                            <span
+                              style={{ fontSize: "10px", color: "#415A77" }}
+                            >
+                              #{i + 1}
+                            </span>
+                          </div>
+                          <p
+                            style={{
+                              margin: 0,
+                              fontSize: "13px",
+                              color: "#E0E1DD",
+                              fontWeight: "600",
+                            }}
+                          >
+                            {formatDate(d.dutyIn)}
+                          </p>
+                          <p
+                            style={{
+                              margin: 0,
+                              fontSize: "11px",
+                              color: "#778DA9",
+                            }}
+                          >
+                            {formatTime(d.dutyIn)} → {formatTime(d.dutyOut)}
+                          </p>
+                          <p
+                            style={{
+                              margin: 0,
+                              fontSize: "11px",
+                              color: "#778DA9",
+                            }}
+                          >
+                            {d.hoursWorked} hrs total ·{" "}
+                            {d.regularHours ?? d.hoursWorked - d.overtime} reg +{" "}
+                            {d.overtime} OT
+                          </p>
+                        </div>
+
+                        <div
+                          style={{
+                            display: "flex",
+                            flexDirection: "column",
+                            alignItems: "flex-end",
+                            gap: "4px",
+                            minWidth: "80px",
+                          }}
+                        >
+                          <p
+                            style={{
+                              margin: 0,
+                              fontSize: "20px",
+                              fontWeight: "700",
+                              color: "#E0E1DD",
+                              fontFamily: "'DM Serif Display', Georgia, serif",
+                            }}
+                          >
+                            ₱{d.earnings}
+                          </p>
+                          {d.otEarnings > 0 && (
+                            <span
+                              style={{ fontSize: "10px", color: "#778DA9" }}
+                            >
+                              +₱{d.otEarnings} OT
+                            </span>
+                          )}
+                          <span
+                            style={{
+                              fontSize: "9px",
+                              color: "#415A77",
+                              marginTop: "6px",
+                              letterSpacing: "0.05em",
+                            }}
+                          >
+                            {expandedIndex === i ? "▲ less" : "▼ details"}
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* EXPANDED */}
+                      {expandedIndex === i && (
+                        <div style={{ borderTop: "1px solid #415A77" }}>
+                          {/* FULL INFO GRID */}
+                          <div
+                            style={{
+                              padding: "16px",
+                              display: "grid",
+                              gridTemplateColumns: "1fr 1fr",
+                              gap: "14px",
+                            }}
+                          >
+                            <InfoCell
+                              label="Duty In"
+                              value={formatDT(d.dutyIn)}
+                            />
+                            <InfoCell
+                              label="Duty Out"
+                              value={formatDT(d.dutyOut)}
+                            />
+                            <InfoCell
+                              label="Total Hours"
+                              value={`${d.hoursWorked} hrs`}
+                            />
+                            <InfoCell
+                              label="Regular Hours"
+                              value={`${d.regularHours ?? d.hoursWorked - d.overtime} hrs`}
+                            />
+                            <InfoCell
+                              label="Overtime Hours"
+                              value={`${d.overtime} hrs`}
+                            />
+                            <InfoCell
+                              label="OT Rate"
+                              value={d.otRate > 0 ? `₱${d.otRate}/hr` : "—"}
+                            />
+                            {d.payType === "hourly" && (
+                              <InfoCell
+                                label="Hourly Rate"
+                                value={`₱${d.hourlyRate}/hr`}
+                              />
+                            )}
+                            {(d.payType === "daily" ||
+                              d.payType === "fixed") && (
+                              <InfoCell
+                                label={
+                                  d.payType === "daily" ?
+                                    "Day Rate"
+                                  : "Fixed Amount"
+                                }
+                                value={`₱${d.dayRate}`}
+                              />
+                            )}
+                            <InfoCell
+                              label="Base Pay"
+                              value={`₱${d.baseEarnings}`}
+                            />
+                            <InfoCell
+                              label="OT Pay"
+                              value={`₱${d.otEarnings}`}
+                            />
+                          </div>
+
+                          {/* TOTAL BAR */}
+                          <div
+                            style={{
+                              margin: "0 16px 14px",
+                              backgroundColor: "#0D1B2A",
+                              borderRadius: "8px",
+                              padding: "10px 14px",
+                              display: "flex",
+                              justifyContent: "space-between",
+                              alignItems: "center",
+                            }}
+                          >
+                            <span
+                              style={{
+                                fontSize: "10px",
+                                letterSpacing: "0.12em",
+                                color: "#415A77",
+                                fontWeight: "700",
+                                textTransform: "uppercase",
+                              }}
+                            >
+                              Total Earned
+                            </span>
+                            <span
+                              style={{
+                                fontSize: "16px",
+                                fontWeight: "700",
+                                color: "#E0E1DD",
+                                fontFamily:
+                                  "'DM Serif Display', Georgia, serif",
+                              }}
+                            >
+                              ₱{d.earnings}
+                            </span>
+                          </div>
+
+                          {/* EDIT / DELETE */}
+                          <div
+                            style={{
+                              display: "grid",
+                              gridTemplateColumns: "1fr 1fr",
+                              gap: "8px",
+                              padding: "0 16px 16px",
+                            }}
+                          >
+                            <button
+                              onClick={() => startEdit(i)}
+                              style={{
+                                padding: "11px",
+                                backgroundColor: "#415A77",
+                                color: "#E0E1DD",
+                                border: "1px solid #778DA9",
+                                borderRadius: "8px",
+                                fontSize: "11px",
+                                fontWeight: "700",
+                                letterSpacing: "0.1em",
+                                cursor: "pointer",
+                                textTransform: "uppercase",
+                                display: "flex",
+                                alignItems: "center",
+                                justifyContent: "center",
+                                gap: "6px",
+                              }}
+                            >
+                              ✏ Edit
+                            </button>
+                            <button
+                              onClick={() => setDeleteConfirm(i)}
+                              style={{
+                                padding: "11px",
+                                backgroundColor: "transparent",
+                                color: "#778DA9",
+                                border: "1px solid #415A77",
+                                borderRadius: "8px",
+                                fontSize: "11px",
+                                fontWeight: "700",
+                                letterSpacing: "0.1em",
+                                cursor: "pointer",
+                                textTransform: "uppercase",
+                                display: "flex",
+                                alignItems: "center",
+                                justifyContent: "center",
+                                gap: "6px",
+                              }}
+                            >
+                              ✕ Delete
+                            </button>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  }
                 </div>
               ))}
             </div>
@@ -613,8 +924,6 @@ function App() {
     </div>
   );
 }
-
-// ─── Sub-components ──────────────────────────────────────────────────────────
 
 function StatCard({ label, value, unit, highlight }) {
   return (
@@ -730,6 +1039,35 @@ function PreviewRow({ label, value, dim, bold }) {
       >
         {value}
       </span>
+    </div>
+  );
+}
+
+function InfoCell({ label, value }) {
+  return (
+    <div>
+      <p
+        style={{
+          margin: "0 0 3px",
+          fontSize: "9px",
+          letterSpacing: "0.1em",
+          color: "#415A77",
+          fontWeight: "700",
+          textTransform: "uppercase",
+        }}
+      >
+        {label}
+      </p>
+      <p
+        style={{
+          margin: 0,
+          fontSize: "12px",
+          color: "#E0E1DD",
+          fontWeight: "500",
+        }}
+      >
+        {value}
+      </p>
     </div>
   );
 }
