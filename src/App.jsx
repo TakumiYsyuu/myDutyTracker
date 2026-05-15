@@ -181,11 +181,11 @@ function App() {
           maxWidth: "480px",
         }}
       >
-        {/* HEADER */}
+        {/* HEADER — slides down slowly on load */}
         <motion.div
-          initial={{ opacity: 0, y: -20 }}
+          initial={{ opacity: 0, y: -40 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5, ease: "easeOut" }}
+          transition={{ duration: 0.9, ease: [0.22, 1, 0.36, 1] }}
           style={{ marginBottom: "28px" }}
         >
           <div
@@ -243,11 +243,11 @@ function App() {
           </p>
         </motion.div>
 
-        {/* STAT CARDS */}
+        {/* STAT CARDS — staggered fade-up */}
         <motion.div
-          initial={{ opacity: 0, y: 16 }}
+          initial={{ opacity: 0, y: 30 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.45, delay: 0.1, ease: "easeOut" }}
+          transition={{ duration: 0.75, delay: 0.2, ease: [0.22, 1, 0.36, 1] }}
           style={{
             display: "grid",
             gridTemplateColumns: "1fr 1fr",
@@ -259,9 +259,9 @@ function App() {
           <StatCard label="TOTAL HOURS" value={totalHours} unit="hrs" />
         </motion.div>
         <motion.div
-          initial={{ opacity: 0, y: 16 }}
+          initial={{ opacity: 0, y: 30 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.45, delay: 0.18, ease: "easeOut" }}
+          transition={{ duration: 0.75, delay: 0.35, ease: [0.22, 1, 0.36, 1] }}
           style={{
             display: "grid",
             gridTemplateColumns: "1fr 1fr",
@@ -276,11 +276,11 @@ function App() {
         {/* ADD DUTY BUTTON */}
         <motion.button
           onClick={isOpen ? cancelForm : () => setOpen(true)}
-          whileHover={{ scale: 1.015 }}
-          whileTap={{ scale: 0.97 }}
-          initial={{ opacity: 0, y: 10 }}
+          whileHover={{ scale: 1.02 }}
+          whileTap={{ scale: 0.96 }}
+          initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.4, delay: 0.25 }}
+          transition={{ duration: 0.7, delay: 0.48, ease: [0.22, 1, 0.36, 1] }}
           style={{
             width: "100%",
             padding: "16px",
@@ -309,15 +309,19 @@ function App() {
           : "Log New Duty"}
         </motion.button>
 
-        {/* FORM */}
-        <AnimatePresence>
+        {/* FORM — smooth accordion open/close */}
+        <AnimatePresence initial={false}>
           {isOpen && (
             <motion.div
               key="form"
               initial={{ opacity: 0, height: 0, marginTop: 0 }}
               animate={{ opacity: 1, height: "auto", marginTop: 12 }}
               exit={{ opacity: 0, height: 0, marginTop: 0 }}
-              transition={{ duration: 0.35, ease: [0.4, 0, 0.2, 1] }}
+              transition={{
+                height: { duration: 0.55, ease: [0.4, 0, 0.2, 1] },
+                opacity: { duration: 0.4, ease: "easeInOut" },
+                marginTop: { duration: 0.55 },
+              }}
               style={{
                 overflow: "hidden",
                 backgroundColor: "#1B263B",
@@ -335,9 +339,9 @@ function App() {
               >
                 {editingIndex !== null && (
                   <motion.div
-                    initial={{ opacity: 0, x: -10 }}
+                    initial={{ opacity: 0, x: -16 }}
                     animate={{ opacity: 1, x: 0 }}
-                    transition={{ delay: 0.1 }}
+                    transition={{ duration: 0.5, delay: 0.15, ease: "easeOut" }}
                     style={{
                       backgroundColor: "#0D1B2A",
                       borderRadius: "8px",
@@ -371,8 +375,13 @@ function App() {
                       <motion.button
                         key={type}
                         onClick={() => setForm({ ...form, payType: type })}
-                        whileHover={{ scale: 1.04 }}
-                        whileTap={{ scale: 0.96 }}
+                        whileHover={{ scale: 1.06 }}
+                        whileTap={{ scale: 0.93 }}
+                        transition={{
+                          type: "spring",
+                          stiffness: 400,
+                          damping: 20,
+                        }}
                         style={{
                           padding: "10px 4px",
                           borderRadius: "8px",
@@ -552,8 +561,9 @@ function App() {
                 {/* SAVE */}
                 <motion.button
                   onClick={saveDuty}
-                  whileHover={{ scale: 1.015, backgroundColor: "#E0E1DD" }}
-                  whileTap={{ scale: 0.97 }}
+                  whileHover={{ scale: 1.02, backgroundColor: "#E0E1DD" }}
+                  whileTap={{ scale: 0.96 }}
+                  transition={{ type: "spring", stiffness: 300, damping: 20 }}
                   style={{
                     width: "100%",
                     padding: "16px",
@@ -579,8 +589,9 @@ function App() {
         <AnimatePresence>
           {duties.length > 0 && (
             <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.6, ease: "easeOut" }}
               style={{ marginTop: "32px" }}
             >
               <p
@@ -609,24 +620,29 @@ function App() {
                     <motion.div
                       key={`duty-${i}-${d.dutyIn}`}
                       layout
-                      initial={{ opacity: 0, y: 20, scale: 0.97 }}
+                      layoutTransition={{ duration: 0.4, ease: "easeInOut" }}
+                      initial={{ opacity: 0, y: 32, scale: 0.96 }}
                       animate={{ opacity: 1, y: 0, scale: 1 }}
                       exit={{
                         opacity: 0,
-                        x: -30,
-                        scale: 0.95,
-                        transition: { duration: 0.22 },
+                        x: -50,
+                        scale: 0.93,
+                        transition: { duration: 0.4, ease: "easeInOut" },
                       }}
-                      transition={{ duration: 0.3, ease: "easeOut" }}
+                      transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
                     >
                       <AnimatePresence mode="wait">
                         {deleteConfirm === i ?
+                          /* DELETE CONFIRM */
                           <motion.div
                             key="delete-confirm"
-                            initial={{ opacity: 0, scale: 0.97 }}
-                            animate={{ opacity: 1, scale: 1 }}
-                            exit={{ opacity: 0, scale: 0.97 }}
-                            transition={{ duration: 0.2 }}
+                            initial={{ opacity: 0, scale: 0.94, y: 8 }}
+                            animate={{ opacity: 1, scale: 1, y: 0 }}
+                            exit={{ opacity: 0, scale: 0.94, y: -8 }}
+                            transition={{
+                              duration: 0.35,
+                              ease: [0.22, 1, 0.36, 1],
+                            }}
                             style={{
                               backgroundColor: "#1B263B",
                               borderRadius: "12px",
@@ -666,8 +682,13 @@ function App() {
                             >
                               <motion.button
                                 onClick={() => setDeleteConfirm(null)}
-                                whileHover={{ scale: 1.03 }}
-                                whileTap={{ scale: 0.97 }}
+                                whileHover={{ scale: 1.04 }}
+                                whileTap={{ scale: 0.95 }}
+                                transition={{
+                                  type: "spring",
+                                  stiffness: 350,
+                                  damping: 22,
+                                }}
                                 style={{
                                   padding: "12px",
                                   backgroundColor: "transparent",
@@ -686,10 +707,15 @@ function App() {
                               <motion.button
                                 onClick={() => deleteDuty(i)}
                                 whileHover={{
-                                  scale: 1.03,
+                                  scale: 1.04,
                                   backgroundColor: "#778DA9",
                                 }}
-                                whileTap={{ scale: 0.97 }}
+                                whileTap={{ scale: 0.95 }}
+                                transition={{
+                                  type: "spring",
+                                  stiffness: 350,
+                                  damping: 22,
+                                }}
                                 style={{
                                   padding: "12px",
                                   backgroundColor: "#415A77",
@@ -707,12 +733,13 @@ function App() {
                               </motion.button>
                             </div>
                           </motion.div>
-                        : <motion.div
+                        : /* DUTY CARD */
+                          <motion.div
                             key="duty-card"
                             initial={{ opacity: 0 }}
                             animate={{ opacity: 1 }}
                             exit={{ opacity: 0 }}
-                            transition={{ duration: 0.18 }}
+                            transition={{ duration: 0.3 }}
                             style={{
                               backgroundColor: "#1B263B",
                               borderRadius: "12px",
@@ -726,9 +753,9 @@ function App() {
                                 setExpandedIndex(expandedIndex === i ? null : i)
                               }
                               whileHover={{
-                                backgroundColor: "rgba(65,90,119,0.12)",
+                                backgroundColor: "rgba(65,90,119,0.15)",
                               }}
-                              transition={{ duration: 0.15 }}
+                              transition={{ duration: 0.25 }}
                               style={{
                                 padding: "16px 18px",
                                 cursor: "pointer",
@@ -837,13 +864,14 @@ function App() {
                                     +₱{d.otEarnings} OT
                                   </span>
                                 )}
+                                {/* Rotating chevron */}
                                 <motion.span
                                   animate={{
                                     rotate: expandedIndex === i ? 180 : 0,
                                   }}
                                   transition={{
-                                    duration: 0.25,
-                                    ease: "easeInOut",
+                                    duration: 0.45,
+                                    ease: [0.22, 1, 0.36, 1],
                                   }}
                                   style={{
                                     fontSize: "12px",
@@ -857,8 +885,8 @@ function App() {
                               </div>
                             </motion.div>
 
-                            {/* EXPANDED */}
-                            <AnimatePresence>
+                            {/* EXPANDED DETAILS */}
+                            <AnimatePresence initial={false}>
                               {expandedIndex === i && (
                                 <motion.div
                                   key="expanded"
@@ -866,8 +894,14 @@ function App() {
                                   animate={{ height: "auto", opacity: 1 }}
                                   exit={{ height: 0, opacity: 0 }}
                                   transition={{
-                                    duration: 0.3,
-                                    ease: [0.4, 0, 0.2, 1],
+                                    height: {
+                                      duration: 0.5,
+                                      ease: [0.4, 0, 0.2, 1],
+                                    },
+                                    opacity: {
+                                      duration: 0.35,
+                                      ease: "easeInOut",
+                                    },
                                   }}
                                   style={{
                                     overflow: "hidden",
@@ -875,9 +909,14 @@ function App() {
                                   }}
                                 >
                                   <motion.div
-                                    initial={{ opacity: 0, y: 8 }}
+                                    initial={{ opacity: 0, y: 14 }}
                                     animate={{ opacity: 1, y: 0 }}
-                                    transition={{ delay: 0.08, duration: 0.25 }}
+                                    exit={{ opacity: 0, y: 8 }}
+                                    transition={{
+                                      duration: 0.4,
+                                      delay: 0.12,
+                                      ease: "easeOut",
+                                    }}
                                   >
                                     <div
                                       style={{
@@ -986,10 +1025,15 @@ function App() {
                                       <motion.button
                                         onClick={() => startEdit(i)}
                                         whileHover={{
-                                          scale: 1.03,
+                                          scale: 1.04,
                                           backgroundColor: "#4f6d8a",
                                         }}
-                                        whileTap={{ scale: 0.97 }}
+                                        whileTap={{ scale: 0.95 }}
+                                        transition={{
+                                          type: "spring",
+                                          stiffness: 350,
+                                          damping: 22,
+                                        }}
                                         style={{
                                           padding: "13px",
                                           backgroundColor: "#415A77",
@@ -1012,11 +1056,16 @@ function App() {
                                       <motion.button
                                         onClick={() => setDeleteConfirm(i)}
                                         whileHover={{
-                                          scale: 1.03,
+                                          scale: 1.04,
                                           borderColor: "#778DA9",
                                           color: "#E0E1DD",
                                         }}
-                                        whileTap={{ scale: 0.97 }}
+                                        whileTap={{ scale: 0.95 }}
+                                        transition={{
+                                          type: "spring",
+                                          stiffness: 350,
+                                          damping: 22,
+                                        }}
                                         style={{
                                           padding: "13px",
                                           backgroundColor: "transparent",
@@ -1062,10 +1111,10 @@ function StatCard({ label, value, unit, highlight }) {
   return (
     <motion.div
       whileHover={{
-        scale: 1.02,
+        scale: 1.03,
         borderColor: highlight ? "#E0E1DD" : "#778DA9",
       }}
-      transition={{ duration: 0.18 }}
+      transition={{ type: "spring", stiffness: 300, damping: 22 }}
       style={{
         backgroundColor: "#1B263B",
         borderRadius: "12px",
